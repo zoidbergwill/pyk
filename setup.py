@@ -28,6 +28,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "requests",
-        "PyYAML"
+        "PyYAML",
+        "six"
     ],
 )

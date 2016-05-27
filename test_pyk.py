@@ -15,6 +15,8 @@ import pprint
 import logging
 import json
 
+from six import *
+
 from pyk import toolkit
 from pyk import util
 
@@ -25,25 +27,25 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 def test_init_app():
     """
     Tests if I can deploy a simple Web app, comprising a
-    single-replica RC backed pod that runs an nginx Web server 
+    single-replica RC backed pod that runs an nginx Web server
     and a service for it.
     """
     print(80*'=')
     print('= Test case: init a simple app\n')
-    
+
     # First, we create the RC from a YAML manifest:
     _, rc_url = pyk_client.create_rc(manifest_filename='manifest/nginx-webserver-rc.yaml')
     rc = pyk_client.describe_resource(rc_url)
     if DEBUG: pprint.pprint(rc.json())
-    
+
     # Next, we create the service from a YAML manifest:
     _, svc_url = pyk_client.create_svc(manifest_filename='manifest/webserver-svc.yaml')
     svc = pyk_client.describe_resource(svc_url)
     if DEBUG: pprint.pprint(svc.json())
-    
+
     # See if the service endpoint has come up
-    _list_endpoints()
-    
+    endpoints = _list_endpoints()
+
     if DEBUG:
         print('kind: %s' %(endpoints['kind']))
         for nodes in endpoints['items']:
@@ -68,28 +70,29 @@ def _list_endpoints():
             epaddress = json.dumps(subsets_entry, indent=2, sort_keys=True)
             break
         endpoints2address[eppath] = epaddress
-    for k, v in endpoints2address.iteritems():
+    for k, v in iteritems(endpoints2address):
         logging.info('%s ->\n%s' %(k, v))
+    return endpoints
 
 def test_init_destroy_app():
     """
     Tests if I can deploy a simple Web app, comprising a
-    single-replica RC backed pod that runs an nginx Web server 
+    single-replica RC backed pod that runs an nginx Web server
     and a service for it and then tear it down again.
     """
     print(80*'=')
     print('= Test case: init a simple app and tear it down again\n')
-    
+
     # First, we create the RC from a YAML manifest:
     _, rc_url = pyk_client.create_rc(manifest_filename='manifest/nginx-webserver-rc.yaml')
     rc = pyk_client.describe_resource(rc_url)
     if DEBUG: pprint.pprint(rc.json())
-    
+
     # Next, we create the service from a YAML manifest:
     _, svc_url = pyk_client.create_svc(manifest_filename='manifest/webserver-svc.yaml')
     svc = pyk_client.describe_resource(svc_url)
     if DEBUG: pprint.pprint(svc.json())
-    
+
     # See if the service endpoint has come up
     time.sleep(2)
     endpoints = pyk_client.execute_operation(method='GET', ops_path='/api/v1/namespaces/default/endpoints').json()
@@ -98,7 +101,7 @@ def test_init_destroy_app():
         for nodes in endpoints['items']:
             pprint.pprint(nodes['metadata'])
             pprint.pprint(nodes['subsets'])
-        
+
     # Now, tear down the whole thing
     zero_rc = pyk_client.scale_rc(manifest_filename='manifest/nginx-webserver-rc.yaml', namespace='default', num_replicas=0)
     delete_svc = pyk_client.delete_resource(svc_url)
@@ -145,21 +148,21 @@ if __name__ == '__main__':
             select_test = sys.argv[2]
         except:
             select_test = 'all'
-            
+
         pyk_client = toolkit.KubeHTTPClient(kube_version='1.1', api_server=api_server_url, debug=DEBUG)
-        
+
         if select_test == 'all':
-            for key_test, test in tests.iteritems():
+            for key_test, test in iteritems(tests):
                 test()
         else:
             tests[select_test]()
-    except IndexError, e:
-        print '\nSorry, I need at least the Kubernetes API Server address, for example, run it like so:'
-        print '  $ ./test_pyk.py http://localhost:8080 # local, where the API server runs'
-        print '  $ ./test_pyk.py http://52.33.181.164/service/kubernetes/api/v1 # using DCOS, where 52.33.181.164 is the IP of the master'
-        print '\nNote: per default I execute all tests; if you want to run a specific one, simply say so, for example: '
-        print '  $ ./test_pyk.py http://localhost:8080 "list pods" # run only the "list pods" test case'
-        print 'Here are all available test cases:'
+    except IndexError as e:
+        print('\nSorry, I need at least the Kubernetes API Server address, for example, run it like so:')
+        print('  $ ./test_pyk.py http://localhost:8080 # local, where the API server runs')
+        print('  $ ./test_pyk.py http://52.33.181.164/service/kubernetes/api/v1 # using DCOS, where 52.33.181.164 is the IP of the master')
+        print('\nNote: per default I execute all tests; if you want to run a specific one, simply say so, for example: ')
+        print('  $ ./test_pyk.py http://localhost:8080 "list pods" # run only the "list pods" test case')
+        print('Here are all available test cases:')
         for key_test in tests.keys():
             print(" %s -> %s" %(key_test, tests[key_test]))
         sys.exit(1)
